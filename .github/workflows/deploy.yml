@@ -1,0 +1,63 @@
+name: Deploy Static Site to GitHub Pages
+
+# Trigger: run this workflow on every push to the main branch
+on:
+  push:
+    branches:
+      - main
+
+# Grant permissions to deploy to GitHub Pages
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+jobs:
+  # ── Job 1: Build ──────────────────────────────────────────
+  build:
+    name: Build
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Check out the repository code
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Step 2: (Optional) Set up Node.js if your project uses it
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      # Step 3: Install dependencies (remove if no package.json)
+      - name: Install dependencies
+        run: npm install
+
+      # Step 4: Run tests
+      - name: Run tests
+        run: npm test --if-present
+
+      # Step 5: Build the project (adjust command for your framework)
+      - name: Build project
+        run: npm run build --if-present
+
+      # Step 6: Upload build output as an artifact for the deploy job
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v2
+        with:
+          path: '.'   # change to './dist' or './build' if you have a build step
+
+  # ── Job 2: Deploy ─────────────────────────────────────────
+  deploy:
+    name: Deploy to GitHub Pages
+    needs: build          # only runs after build job succeeds
+    runs-on: ubuntu-latest
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v2
