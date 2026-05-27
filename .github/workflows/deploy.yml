@@ -1,56 +1,64 @@
 name: Deploy Static Site to GitHub Pages
 
-# Trigger: run this workflow on every push to the main branch
 on:
   push:
     branches:
       - main
 
-# Grant permissions to deploy to GitHub Pages
 permissions:
   contents: read
   pages: write
   id-token: write
 
 jobs:
-  # ── Job 1: Build ──────────────────────────────────────────
   build:
     name: Build
     runs-on: ubuntu-latest
 
     steps:
-      # Step 1: Check out the repository code
+      # Checkout repository
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
-      # Step 2: (Optional) Set up Node.js if your project uses it
-      - name: Set up Node.js
-        uses: actions/setup-node@v3
+      # Setup Node.js
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
           node-version: 18
 
-      # Step 3: Install dependencies (remove if no package.json)
+      # Install dependencies
       - name: Install dependencies
         run: npm install
 
-      # Step 4: Run tests
+      # Run tests
       - name: Run tests
         run: npm test --if-present
 
-      # Step 5: Build the project (adjust command for your framework)
+      # Build project
       - name: Build project
         run: npm run build --if-present
 
-      # Step 6: Upload build output as an artifact for the deploy job
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v2
+      # Configure AWS credentials using GitHub Secrets
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
         with:
-          path: '.'   # change to './dist' or './build' if you have a build step
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: us-east-1
 
-  # ── Job 2: Deploy ─────────────────────────────────────────
+      # Optional: Test AWS connection
+      - name: Verify AWS identity
+        run: aws sts get-caller-identity
+
+      # Upload artifact for GitHub Pages
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: .
+
   deploy:
-    name: Deploy to GitHub Pages
-    needs: build          # only runs after build job succeeds
+    name: Deploy
+    needs: build
     runs-on: ubuntu-latest
 
     environment:
@@ -60,13 +68,4 @@ jobs:
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v2
-
-      # Configure AWS credentials
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: us-east-1
-
+        uses: actions/deploy-pages@v4
